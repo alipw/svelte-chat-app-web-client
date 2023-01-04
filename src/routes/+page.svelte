@@ -18,7 +18,7 @@
   let userName: string = "";
 
   const connectWS = (attemptCount = 0) => {
-    const ws = new WebSocket(`ws://${env.PUBLIC_API_HOST}/ws`);
+    const ws = new WebSocket(`wss://${env.PUBLIC_API_HOST}/ws`);
 
     ws.onopen = () => {
       connected = "connected to websocket server!";
