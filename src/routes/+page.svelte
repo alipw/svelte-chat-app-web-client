@@ -2,6 +2,7 @@
   import Spinner from "../elements/loading/Spinner.svelte";
   import { onMount } from "svelte";
   import { env } from "$env/dynamic/public";
+    import PreviousMap from "postcss/lib/previous-map";
 
   interface wsMessageInterface {
     message: string;
@@ -21,7 +22,7 @@
     const ws = new WebSocket(`wss://${env.PUBLIC_API_HOST}/ws`);
 
     ws.onopen = () => {
-      connected = "connected to websocket server!";
+      connected = "connected";
       wsSend = ws;
       status = true;
     };
@@ -29,6 +30,7 @@
     ws.onmessage = (message) => {
       const messageData: wsMessageInterface = JSON.parse(message.data);
       messages.push(messageData);
+      localStorage.setItem("previousMessages", JSON.stringify(messages))
       messages = messages;
     };
 
@@ -44,6 +46,8 @@
   };
 
   onMount(() => {
+    const previousMessages = localStorage.getItem("previousMessages")
+    messages = JSON.parse(previousMessages ? previousMessages : "[]")
     connectWS();
   });
 </script>
@@ -52,7 +56,6 @@
   <div class="text-4xl">Welcome to simple chat app</div>
 
   <div class="flex flex-row text-xl">
-    <h2>Websocket connection status:</h2>
     <p
       class="{status
         ? 'text-green-500'
