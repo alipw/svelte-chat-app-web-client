@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { error } from "@sveltejs/kit";
-  import { stringify } from "postcss";
   import Spinner from "../elements/loading/Spinner.svelte";
   import { onMount } from "svelte";
-  import { prevent_default } from "svelte/internal";
+  import { env } from "$env/dynamic/public";
 
   interface wsMessageInterface {
     message: string;
@@ -20,7 +18,7 @@
   let userName: string = "";
 
   const connectWS = (attemptCount = 0) => {
-    const ws = new WebSocket("ws://192.168.1.7:8000/ws");
+    const ws = new WebSocket(`ws://${env.PUBLIC_API_HOST}/ws`);
 
     ws.onopen = () => {
       connected = "connected to websocket server!";
