@@ -89,7 +89,7 @@
   crossorigin="anonymous"
 />
 
-<div class="grid gap-y-2 2xl:mx-96 xl:mx-40 md:mx-10 sm:mx-5">
+<div class="grid gap-y-2 2xl:mx-96 xl:mx-40 md:mx-20 sm:mx-5">
   <div class="grid grid-cols-1 gap-y-4 m-10">
     <div class="text-4xl font-medium text-center">
       Welcome to simple chat app
