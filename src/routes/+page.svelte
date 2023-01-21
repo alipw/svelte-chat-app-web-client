@@ -1,43 +1,47 @@
 <script lang="ts">
-  import Spinner from "../elements/loading/Spinner.svelte";
+  import Spinner from "../lib/elements/loading/Spinner.svelte";
   import { onMount } from "svelte";
   import { env } from "$env/dynamic/public";
-    import PreviousMap from "postcss/lib/previous-map";
-
-  interface wsMessageInterface {
-    message: string;
-    sender: string;
-  }
+  import MessageBlock from "$lib/components/MessageBlock.svelte";
+  import type { Message } from "$lib/types/Message";
 
   let errorMessage: string = "";
   let connected: string = "Not connected!";
-  let status: boolean = false;
-  let messages: wsMessageInterface[] = [];
+  let isConnected: boolean = false;
+  let messages: Message[] = [];
   let wsSend: WebSocket | null = null;
 
   let userMessage: string = "";
   let userName: string = "";
 
   const connectWS = (attemptCount = 0) => {
-    const ws = new WebSocket(`wss://${env.PUBLIC_API_HOST}/ws`);
+    let API_WS_URL = "";
+
+    if (env.PUBLIC_USE_SSL === "false") {
+      API_WS_URL = `ws://${env.PUBLIC_API_HOST}/ws`;
+    } else {
+      API_WS_URL = `wss://${env.PUBLIC_API_HOST}/ws`;
+    }
+
+    const ws = new WebSocket(API_WS_URL);
 
     ws.onopen = () => {
       connected = "connected";
       wsSend = ws;
-      status = true;
+      isConnected = true;
     };
 
     ws.onmessage = (message) => {
-      const messageData: wsMessageInterface = JSON.parse(message.data);
+      const messageData: Message = JSON.parse(message.data);
       messages.push(messageData);
-      localStorage.setItem("previousMessages", JSON.stringify(messages))
+      localStorage.setItem("previousMessages", JSON.stringify(messages));
       messages = messages;
     };
 
     ws.onclose = () => {
       connected =
         "Not conected!, reconnecting... attempt count: " + attemptCount;
-      status = false;
+      isConnected = false;
 
       setTimeout(() => {
         connectWS(attemptCount + 1);
@@ -46,88 +50,99 @@
   };
 
   onMount(() => {
-    const previousMessages = localStorage.getItem("previousMessages")
-    messages = JSON.parse(previousMessages ? previousMessages : "[]")
+    const previousMessages = localStorage.getItem("previousMessages");
+    messages = JSON.parse(previousMessages ? previousMessages : "[]");
     connectWS();
   });
+
+  const handleSubmit = (event: Event) => {
+    event.preventDefault();
+
+    if (!userName) {
+      errorMessage = "Please set your username first";
+      return;
+    }
+
+    if (!isConnected) {
+      errorMessage =
+        "Unable to connect to the server, please try again sometime";
+      return;
+    }
+
+    errorMessage = "";
+    const dataToSend: Message = {
+      message: userMessage,
+      sender: userName,
+      timestamp: new Date().toString(),
+    };
+
+    wsSend?.send(JSON.stringify(dataToSend));
+    document.getElementById("inputText")?.scrollIntoView();
+    userMessage = "";
+  };
 </script>
 
-<div class="grid m-10 gap-y-2">
-  <div class="text-4xl">Welcome to simple chat app</div>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css"
+  integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA=="
+  crossorigin="anonymous"
+/>
 
-  <div class="flex flex-row text-xl">
-    <p
-      class="{status
-        ? 'text-green-500'
-        : 'text-red-500'} font-bold flex flex-row h-10 py-auto"
-    >
-      {connected}
+<div class="grid m-10 gap-y-2 mx-40">
+  <div class="grid grid-cols-1 gap-y-4 m-10">
+    <div class="text-4xl font-medium text-center">
+      Welcome to simple chat app
+    </div>
 
-      {#if status === false}
-          <Spinner/>
+    <div class="flex flex-row items-center h-12 justify-center">
+      <p
+        class="text-xl font-medium {isConnected
+          ? 'text-green-500'
+          : 'text-red-500'}"
+      >
+        {connected}
+      </p>
+      {#if isConnected === false}
+        <div class="spinner m-2">
+          <div class="bounce1" />
+          <div class="bounce2" />
+          <div class="bounce3" />
+        </div>
       {/if}
-    </p>
-  </div>
+    </div>
 
-  <p class="text-red-500">
-    {errorMessage}
-  </p>
-
-  <div class="flex flex-row gap-2">
-    <p class="text-2xl">My name is :</p>
-    <input
-      class="rounded-lg h-8 border border-gray-500 px-2 py-1 w-40"
-      bind:value={userName}
-    />
-  </div>
-
-  <ol class="text-3xl w-[600px] bg-gray-300 p-4 rounded-lg ">
-    <p>Messages :</p>
+    <p class="text-2xl">Messages :</p>
     {#each messages as message}
-      <li class={"text-xl flex flex-row my-2 bg-white shadow-black shadow-lg py-2 px-2 w-min rounded-lg w-500"}>
-        <p class="font-semibold px-2 py-1 ">
-          {#if message.sender === userName}
-          {"me"}
-          {:else}
-          {message.sender}
-          {/if}
-        </p>
-        <p class="font-semibold px-1 py-1">:</p>
-        <p class=" font-semibold px-2 py-1">{message.message}</p>
-      </li>
+      <MessageBlock {message} />
     {/each}
-  </ol>
 
-  <form
-    on:submit={(event) => {
-      event.preventDefault();
+    {#if messages.length === 0}
+      <div class="flex items-center justify-center my-8">
+        <div class="text-xl text-gray-600">There is no message yet!</div>
+      </div>
+    {/if}
+  </div>
 
-      if (!userName) {
-        errorMessage = "Please set your username first";
-        return;
-      }
+  <div class="flex flex-col items-center">
+    <div class="flex flex-row items-center gap-2">
+      <p class="text-xl font-medium text-blue-500">My name is :</p>
+      <input
+        class="rounded-lg h-8 border border-blue-500 px-2 py-1 w-40"
+        bind:value={userName}
+      />
+    </div>
 
-      if (!status) {
-        errorMessage =
-          "Unable to connect to the server, please try again sometime";
-        return;
-      }
-
-      errorMessage = "";
-      const dataToSend = {
-        message: userMessage,
-        sender: userName,
-      };
-
-      wsSend?.send(JSON.stringify(dataToSend));
-      document.getElementById("inputText")?.scrollIntoView()
-      userMessage = "";
-    }}
-  >
-    <input
-      class="rounded-lg h-8 border border-gray-500 px-2 py-1 "
-      id="inputText"
-      bind:value={userMessage}
-    />
-  </form>
+    <form class="flex items-center m-4" on:submit|preventDefault={handleSubmit}>
+      <input
+        class="rounded-lg h-10 border border-gray-500 px-4 py-2 w-full flex-1 mr-2"
+        placeholder="Type your message here..."
+        bind:value={userMessage}
+      />
+      <button class="bg-blue-500 text-white rounded-lg h-10 px-4 py-2">
+        <i class="fas fa-paper-plane text-white" />
+        Send
+      </button>
+    </form>
+  </div>
 </div>
